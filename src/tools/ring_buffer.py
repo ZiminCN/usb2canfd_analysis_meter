@@ -1,5 +1,6 @@
 from collections import deque
 import threading
+import sys
 try:
     from src.tools.log import Log
 except:
@@ -7,82 +8,102 @@ except:
 import numpy as np
 
 class RingBuffer:
-    def __init__(self, size):
+    def __init__(self, element_cnt):
         self.log = Log("RingBuffer")
-        self.buffer = [None] * size
-        self.size = size
-        self.put_head = 0
-        self.put_tail = 0
-        self.put_base = 0
-        self.get_head = 0
-        self.get_tail = 0
-        self.get_base = 0
+        self.size = element_cnt  # 缓冲区的大小
+        self.buffer = [None] * element_cnt  # 初始化缓冲区
+        self.head = 0  # 头部索引
+        self.tail = 0  # 尾部索引
+        self.count = 0  # 当前元素计数
         self.lock = threading.Lock()
+        self.ring_buf_reset()
         
     def ring_buf_reset(self):
-        self.put_head = 0
-        self.put_tail = 0
-        self.put_base = 0
-        self.get_head = 0
-        self.get_tail = 0
-        self.get_base = 0
-        for cnt in range(self.size):
-            self.buffer[cnt] = None
+        with self.lock:
+            self.head = 0
+            self.tail = 0
+            self.count = 0
+            self.buffer = [None] * self.size
+    
+    def ring_buf_is_full(self):
+        return self.count == self.size
     
     def ring_buf_is_empty(self):
-        return self.put_head == self.get_tail
+        return self.count == 0
     
     def ring_buf_free_space_get(self):
-        return self.size - (self.put_head - self.get_tail)
+        return self.size - self.count
     
-    def ring_buf_caoacity_get(self):
+    def ring_buf_capacity_get(self):
         return self.size
     
     def ring_buf_size_get(self):
-        return self.put_tail - self.get_head
+        return self.count
     
     ##
     # This routine writes data to a ring buffer
     # #
-    def ring_buf_put(self, input_data: bytes, size):
-        cnt = 0
-        with self.lock:
-            while True:
-                if self.ring_buf_free_space_get() <= 0:
-                    self.log.error("ring_buf_put: no free space")
-                    return False
-                
-                if cnt == size:
-                    return True
-                
-                self.buffer[self.put_tail] = input_data[cnt]
-                cnt += 1
-                if self.put_tail == (self.size - 1):
-                    self.put_base += self.size
-                    self.put_tail = 0
-                else:
-                    self.put_tail += 1
-                
-                
-                
-                
-                
-                
-                
+    def ring_buf_single_put(self, input_data: bytes):
+        """写入数据到缓冲区"""
+        if self.ring_buf_is_full():
+            print("Buffer full, cannot write data.")
+            return False
+
+        self.buffer[self.tail] = input_data  # 写入数据
+        self.tail = (self.tail + 1) % self.size  # 更新尾部索引
+        self.count += 1  # 增加元素计数
+        return True
         
     ##
     # This routine reads data to a ring buffer with removal.
     # #
-    def ring_buf_get(self, output_data: bytes, size):
-        with self.lock:
-            pass
-    
-    
+    def ring_buf_single_get(self):
+        """从缓冲区读取数据"""
+        if self.ring_buf_is_empty():
+            print("Buffer empty, cannot read data.")
+            return None
+
+        data = self.buffer[self.head]  # 读取数据
+        self.buffer[self.head] = None  # 清空该位置
+        self.head = (self.head + 1) % self.size  # 更新头部索引
+        self.count -= 1  # 减少元素计数
+        return data
+
     ##
     # This routine reads data from a ring buffer @param bupeek_dataf without removal.
     # #
-    def ring_buf_peek(self, peek_data: bytes, size):
+    def ring_buf_peek_single(self, cnt):
+        """查看缓冲区头部的数据，不移除它"""
+        if self.ring_buf_is_empty():
+            print("Buffer empty, nothing to peek.")
+            return None
+        return self.buffer[self.head + cnt]
     
+    def ring_buf_put(self, input_data: bytes, size):
+        with self.lock:
+            cnt = 0
+            for cnt in range(size):
+                if self.ring_buf_single_put(input_data[cnt]) is False:
+                    self.log.error("ring_buf_put failed")
+                    return False
+            return True
+                        
+    def ring_buf_get(self, output_data, size):
+        with self.lock:
+            cnt = 0
+            for cnt in range(size):
+                output_data[cnt] = self.ring_buf_single_get()
+                if output_data[cnt] is None:
+                    self.log.error("ring_buf_get failed")
+                    return False
+            return True
+    
+    def ring_buf_peek(self, output_data, size):
+        cnt = 0
+        for cnt in range(size):
+            output_data[cnt] = self.ring_buf_peek_single(cnt)
+        
+        return output_data
             
     
     
