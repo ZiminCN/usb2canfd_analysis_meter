@@ -34,6 +34,11 @@ class TestRingBuffer(unittest.TestCase):
         test_output_data = [0, 0, 0, 0, 0]
         ret = self.ring_buffer.ring_buf_get(test_output_data, 5)
         print("<ring_buf_get> => ret is: [{}]".format(ret))
+        print("<ring_buf_get> => test_output_data is: [{}]".format(test_output_data))
+        
+        ret = self.ring_buffer.ring_buf_get(test_output_data, 5)
+        print("<ring_buf_get> => ret is: [{}]".format(ret))
+        print("<ring_buf_get> => test_output_data is: [{}]".format(test_output_data))
         
         ret = self.ring_buffer.ring_buf_peek(peek_data, 5)
         print("<ring_buf_peek> => ret is: [{}]".format(ret))

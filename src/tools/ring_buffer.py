@@ -92,14 +92,20 @@ class RingBuffer:
         with self.lock:
             cnt = 0
             for cnt in range(size):
-                output_data[cnt] = self.ring_buf_single_get()
-                if output_data[cnt] is None:
+                temp_data = self.ring_buf_single_get()
+                if temp_data is None:
                     self.log.error("ring_buf_get failed")
                     return False
+                
+                output_data[cnt] = temp_data
             return True
     
     def ring_buf_peek(self, output_data, size):
         cnt = 0
+        if self.ring_buf_size_get() < size:
+            print("Buffer empty, nothing to peek.")
+            return None
+        
         for cnt in range(size):
             output_data[cnt] = self.ring_buf_peek_single(cnt)
         
