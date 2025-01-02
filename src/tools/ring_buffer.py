@@ -46,7 +46,7 @@ class RingBuffer:
     def ring_buf_single_put(self, input_data: bytes):
         """写入数据到缓冲区"""
         if self.ring_buf_is_full():
-            print("Buffer full, cannot write data.")
+            self.log.info("Buffer full, cannot write data.")
             return False
 
         self.buffer[self.tail] = input_data  # 写入数据
@@ -60,7 +60,7 @@ class RingBuffer:
     def ring_buf_single_get(self):
         """从缓冲区读取数据"""
         if self.ring_buf_is_empty():
-            print("Buffer empty, cannot read data.")
+            self.log.info("Buffer empty, cannot read data.")
             return None
 
         data = self.buffer[self.head]  # 读取数据
@@ -75,7 +75,7 @@ class RingBuffer:
     def ring_buf_peek_single(self, cnt):
         """查看缓冲区头部的数据，不移除它"""
         if self.ring_buf_is_empty():
-            print("Buffer empty, nothing to peek.")
+            self.log.info("Buffer empty, nothing to peek.")
             return None
         return self.buffer[self.head + cnt]
     
@@ -103,7 +103,7 @@ class RingBuffer:
     def ring_buf_peek(self, output_data, size):
         cnt = 0
         if self.ring_buf_size_get() < size:
-            print("Buffer empty, nothing to peek.")
+            self.log.info("The amount of data that can be read is exceeded.")
             return None
         
         for cnt in range(size):
