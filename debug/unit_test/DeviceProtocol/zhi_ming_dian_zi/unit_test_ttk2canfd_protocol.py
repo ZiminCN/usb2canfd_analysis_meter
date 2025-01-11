@@ -19,7 +19,10 @@ class TestTTL2CANFDProtocol(unittest.TestCase):
             print("串口未打开")
             return
         self.protocol = TTL2CANFDProtocol(self.uart_driver)
-        self.protocol.check_hardware_is_connect()
+        
+        if self.protocol.order_check_hardware_is_connect() is True:
+            self.protocol.order_get_uart_communication_baud_rate()
+            self.protocol.order_set_uart_communication_baud_rate(115200)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 from collections import deque
 import threading
-import sys
 try:
     from src.tools.log import Log
 except:
