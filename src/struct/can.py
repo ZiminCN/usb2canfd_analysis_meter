@@ -19,7 +19,7 @@ class CAN_FRAME_FLAGS:
 
 
 class CAN_FRAME:
-    def __init__(self, id: bytes, dlc: int, flags: int, data: bytes):
+    def __init__(self, id: bytes, dlc: int, flags: CAN_FRAME_FLAGS, data: bytes):
         self.is_initialized = False
         if id is None:
             raise ValueError("id is required")

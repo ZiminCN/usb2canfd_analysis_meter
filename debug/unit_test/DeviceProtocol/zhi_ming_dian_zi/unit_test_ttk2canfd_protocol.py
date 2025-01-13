@@ -5,6 +5,13 @@ from src.DeviceProtocol.zhi_ming_dian_zi.USB_CAN_FD.ttl2canfd_protocol import (
     TTL2CANFDProtocol,
 )
 
+try:
+    from src.struct.can import CAN_FRAME_FLAGS
+    from src.struct.can import CAN_FRAME
+    from src.struct.can import CAN_BUS_TIMING_PARAMETER
+except:
+    print("[Error] Import CAN Struct Define error!")
+
 
 class TestTTL2CANFDProtocol(unittest.TestCase):
     def setUp(self):
@@ -21,8 +28,14 @@ class TestTTL2CANFDProtocol(unittest.TestCase):
         self.protocol = TTL2CANFDProtocol(self.uart_driver)
 
         if self.protocol.order_check_hardware_is_connect() is True:
-            self.protocol.order_get_uart_communication_baud_rate()
-            self.protocol.order_set_uart_communication_baud_rate(115200)
+            # self.protocol.order_get_uart_communication_baud_rate()
+            # self.protocol.order_get_can_communication_baud_rate()
+            self.protocol.order_reset_hardware_filter()
+            self.protocol.order_reset_software_filter()
+
+            self.protocol.order_get_hardware_filter()
+            self.protocol.order_get_software_filter()
+            self.protocol.order_get_can_frame_format()
 
 
 if __name__ == "__main__":

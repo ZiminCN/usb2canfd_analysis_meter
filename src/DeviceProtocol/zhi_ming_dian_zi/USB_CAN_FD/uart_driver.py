@@ -19,7 +19,7 @@ class UartDriver:
         self.byte_size = serial.EIGHTBITS
         self.parity = serial.PARITY_NONE
         self.stop_bits = serial.STOPBITS_ONE
-        self.timeout = 1
+        self.timeout = 0.1
         self.xonxoff = False
         self.rtscts = False
         self.write_timeout = 5
