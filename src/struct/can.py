@@ -28,7 +28,7 @@ class CAN_FRAME:
         if flags is None:
             raise ValueError("flags is required")
 
-        self.id = id & 0x1FFFFFFF
+        self.id = id & 0x1FFFFFFF ## extend can id is 31 bit
         self.flags = flags
 
         if (self.flags >> 2) & 0x1:

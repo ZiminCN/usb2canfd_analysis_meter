@@ -607,24 +607,175 @@ class TTL2CANFDProtocol:
         self.send_order(0x0C)
         read_data = self.receive_order()
         print("read_data123: [{}]".format(read_data))
+        
+        can_frame_mode = read_data[5]
+        if can_frame_mode == 0x00:
+            self.log.info("[Success] Get CAN Frame Mode : CAN 2.0 Mode")
+        elif can_frame_mode == 0x01:
+            self.log.info("[Success] Get CAN Frame Mode : CAN FD Mode")
+        else :
+            self.log.info("[Error] Get CAN Frame Mode : Unknown")
+            return -1
+        
+        return can_frame_mode
 
     def order_send_can_frame(self, can_frame: CAN_FRAME):
-        pass
+        check_values = 0x00
+        tx_data_len = 0x00
+        is_IDE = False
+        is_RTR = False
+        is_FDF = False
+        is_BRS = False
+        
+        if (can_frame.flags & 0x01) == True:
+            is_IDE = True
+        elif (can_frame.flags >> 1) & 0x01 == True:
+            is_RTR = True
+        elif (can_frame.flags >> 2) & 0x01 == True:
+            is_FDF = True
+        elif (can_frame.flags >> 3) & 0x01 == True:
+            is_BRS = True
+
+        CAN_ID = can_frame.get_can_frame_id()
+        tx_data_data = can_frame.get_can_frame_data()
+        tx_data_data_len = len(tx_data_data)
+
+        if is_IDE != True:
+            CAN_ID_L = CAN_ID & 0xFF
+            CAN_ID_H = (CAN_ID >> 8) & 0xFF
+            if is_RTR != True:
+                tx_data_header = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x10, 0x00, is_FDF, is_BRS, is_IDE, is_RTR, CAN_ID_L, CAN_ID_H, tx_data_data_len])
+                tx_data_tail = bytes([check_values, 0x5A])
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                tx_data_len = len(tx_data)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                check_values = self.xor_calculate(tx_data, tx_data_len)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+            else:
+                tx_data_header = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x10, 0x00, is_FDF, is_BRS, is_IDE, is_RTR, CAN_ID_L, CAN_ID_H, 0x00])
+                tx_data_tail = bytes([check_values, 0x5A])
+                tx_data_data = bytes([0x00])
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                tx_data_len = len(tx_data)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                check_values = self.xor_calculate(tx_data, tx_data_len)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+        else:
+            CAN_ID_1 = CAN_ID & 0xFF
+            CAN_ID_2 = (CAN_ID >> 8) & 0xFF
+            CAN_ID_3 = (CAN_ID >> 16) & 0xFF
+            CAN_ID_4 = (CAN_ID >> 24) & 0xFF
+            if is_RTR != True:
+                tx_data_header = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x10, 0x00, is_FDF, is_BRS, is_IDE, is_RTR, CAN_ID_1, CAN_ID_2, CAN_ID_3, CAN_ID_4, tx_data_data_len])
+                tx_data_tail = bytes([check_values, 0x5A])
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                tx_data_len = len(tx_data)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                check_values = self.xor_calculate(tx_data, tx_data_len)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+            else:
+                tx_data_header = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x10, 0x00, is_FDF, is_BRS, is_IDE, is_RTR, CAN_ID_1, CAN_ID_2, CAN_ID_3, CAN_ID_4, 0x00])
+                tx_data_tail = bytes([check_values, 0x5A])
+                tx_data_data = bytes([0x00])
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                tx_data_len = len(tx_data)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+                check_values = self.xor_calculate(tx_data, tx_data_len)
+                tx_data = tx_data_header + tx_data_data + tx_data_tail
+
+        self.uart_driver.write_hex_bytes(tx_data)
 
     def order_receive_can_frame(self):
-        pass
+        self.send_order(0x12)
+        read_data = self.receive_order()
+        read_data = bytes.fromhex(read_data)
+        self.log.debug("[Debug]: get read data is : [{}]".format(read_data.hex()))
+        
+        if self.check_xor_is_right_or_not(read_data, len(read_data)) is False:
+            self.log.error("=> [Error]: get xor is wrong")
+            return None
 
     def order_get_bus_fault_info(self):
-        pass
+        self.send_order(0x13)
+        read_data = self.receive_order()
+        read_data = bytes.fromhex(read_data)
+        self.log.debug("[Debug]: get read data is : [{}]".format(read_data.hex()))
+        
+        send_all_order_cmd_num = (read_data[6] << 24) | (read_data[7] << 16) | (read_data[8] << 8) | read_data[9]
+        send_order_successed_num = (read_data[10] << 24) | (read_data[11] << 16) | (read_data[12] << 8) | read_data[13]
+        send_order_failed_num = (read_data[14] << 24) | (read_data[15] << 16) | (read_data[16] << 8) | read_data[17]
+        receive_order_successed_num = (read_data[18] << 24) | (read_data[19] << 16) | (read_data[20] << 8) | read_data[21]
+        send_order_failed = read_data[22]
+        receive_order_failed = read_data[23]
+        last_error = read_data[24]
+        
+        self.log.info("[Info]: send_all_order_cmd_num:[{}], send_order_successed_num:[{}], send_order_failed_num:[{}], receive_order_successed_num:[{}], send_order_failed:[{}], receive_order_failed:[{}], last_error:[{}]".format(send_all_order_cmd_num, send_order_successed_num, send_order_failed_num, receive_order_successed_num, send_order_failed, receive_order_failed, last_error))
 
-    def order_set_device_dominant_frequency(self):
-        pass
-
+    def order_set_device_dominant_frequency(self, set_f_clock: int):
+        check_values = 0x00
+        tx_data_len = 0x00
+        write_f_clokc = 0x00
+        
+        f_clock_1 = set_f_clock & 0xFF
+        f_clock_2 = (set_f_clock >> 8) & 0xFF
+        f_clock_3 = (set_f_clock >> 16) & 0xFF
+        f_clock_4 = (set_f_clock >> 24) & 0xFF
+        
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x15, write_f_clokc, f_clock_1, f_clock_2, f_clock_3, f_clock_4, check_values, 0x5A])
+        tx_data_len = len(tx_data)
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x15, write_f_clokc, f_clock_1, f_clock_2, f_clock_3, f_clock_4, check_values, 0x5A])
+        check_values = self.xor_calculate(tx_data, tx_data_len)
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x15, write_f_clokc, f_clock_1, f_clock_2, f_clock_3, f_clock_4, check_values, 0x5A])
+        self.uart_driver.write_hex_bytes(tx_data)
+        
+        read_data = self.receive_order()
+        read_data = bytes.fromhex(read_data)
+        self.log.debug("[Debug]: get read data is : [{}]".format(read_data.hex()))
+        f_clock = (read_data[9] << 24) | (read_data[8] << 16) | (read_data[7] << 8) | read_data[6]
+        self.log.debug("[Debug]: f_clock is : [{}]".format(f_clock))
+        
+        if f_clock == set_f_clock:
+            return True
+        else:
+            return False
+        
     def order_get_device_dominant_frequency(self):
-        pass
+        check_values = 0x00
+        tx_data_len = 0x00
+        read_f_clock = 0x01
+        
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x15, read_f_clock, 0x00, 0x00, 0x00, 0x00, check_values, 0x5A])
+        tx_data_len = len(tx_data)
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x15, read_f_clock, 0x00, 0x00, 0x00, 0x00, check_values, 0x5A])
+        check_values = self.xor_calculate(tx_data, tx_data_len)
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0x15, read_f_clock, 0x00, 0x00, 0x00, 0x00, check_values, 0x5A])
+        self.uart_driver.write_hex_bytes(tx_data)
+        
+        read_data = self.receive_order()
+        read_data = bytes.fromhex(read_data)
+        self.log.debug("[Debug]: get read data is : [{}]".format(read_data.hex()))
+        f_clock = (read_data[9] << 24) | (read_data[8] << 16) | (read_data[7] << 8) | read_data[6]
+        self.log.debug("[Debug]: f_clock is : [{}]".format(f_clock))
+        return f_clock
 
     def order_get_device_uuid(self):
-        pass
-
+        self.send_order(0xF0)
+        read_data = self.receive_order()
+        read_data = bytes.fromhex(read_data)
+        
+        uuid = (read_data[16] << 88) | (read_data[15] << 80) | (read_data[14] << 72) | (read_data[13] << 64) | (read_data[12] << 56) | (read_data[11] << 48) | (read_data[10] << 40) | (read_data[9] << 32) | (read_data[8] << 24) | (read_data[7] << 16) | (read_data[6] << 8) | read_data[5]
+        
+        self.log.info("[Info]: get device uuid is : [{}]".format(uuid))
+        return uuid
+        
     def order_reset_device(self):
-        pass
+        check_values = 0x00
+        tx_data_len = 0x00
+        
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0xEE, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, check_values, 0x5A])
+        tx_data_len = len(tx_data)
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0xEE, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, check_values, 0x5A])
+        check_values = self.xor_calculate(tx_data, tx_data_len)
+        tx_data = bytes([0x55, 0xAA, tx_data_len, 0x01, 0xEE, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, check_values, 0x5A])
+        self.uart_driver.write_hex_bytes(tx_data)
+        
